@@ -1,0 +1,33 @@
+server:
+  port: 8400
+spring:
+  application:
+    name: social
+  datasource:
+    url: jdbc:mysql://localhost:3306/zonsh?useUnicode=true&characterEncoding=UTF-8&autoReconnect=true&failOverReadOnly=false&useSSL=false
+    #url: jdbc:mysql://127.0.0.1:3306/zonsh?useUnicode=true&characterEncoding=UTF-8&autoReconnect=true&failOverReadOnly=false&useSSL=false
+    username: root
+    password: zonsh654321
+    driver-class-name: com.mysql.jdbc.Driver
+    max-idle: 10
+    max-wait: 10000
+    min-idle: 5
+    initial-size: 5
+eureka:
+  client:
+    serviceUrl:
+      defaultZone: http://127.0.0.1:8000/eureka/
+
+mybatis-plus:
+  mapper-locations: classpath:social/mapper/xml/*.xml
+  type-aliases-package: social.entity
+  configuration:
+    map-underscore-to-camel-case: true
+    cache-enabled: false
+
+logging:
+  level:
+    comment.mapper: debug
+ribbon:
+  eureka:
+    enabled: true

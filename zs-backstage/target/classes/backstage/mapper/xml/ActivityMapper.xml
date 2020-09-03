@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="backstage.mapper.ActivityMapper">
+
+    <!-- 通用查询映射结果 -->
+    <resultMap id="BaseResultMap" type="backstage.entity.Activity">
+        <id column="aid" property="aid" />
+        <result column="activity_number" property="activityNumber" />
+        <result column="activity_title" property="activityTitle" />
+        <result column="activity_content" property="activityContent" />
+        <result column="activity_url" property="activityUrl" />
+        <result column="activity_type" property="activityType" />
+        <result column="status" property="status" />
+        <result column="release_time" property="releaseTime" />
+        <result column="join_count" property="joinCount" />
+        <result column="sort" property="sort" />
+        <result column="ext" property="ext" />
+        <result column="create_time" property="createTime" />
+        <result column="create_by" property="createBy" />
+        <result column="update_time" property="updateTime" />
+        <result column="update_by" property="updateBy" />
+    </resultMap>
+
+    <!-- 根据条件查询活动 -->
+    <select id="listActivityPage" parameterType="request.activity.QueryActivityPageParameter" resultType="result.vo.activity.ActivityResult">
+        SELECT aid, activity_number activityNumber, activity_title activityTitle, activity_type activityType,
+                status, release_time releaseTime
+        FROM zs_activity WHERE `status` = #{status}
+        <if test="null != searchKey and searchKey != ''">
+            AND (
+            activity_number LIKE CONCAT(#{searchKey}, '%')
+            or activity_title LIKE CONCAT(#{searchKey}, '%')
+            )
+        </if>
+        <if test="null != startTime">
+            AND DATE_FORMAT(release_time, '%y %m %d') &gt;= DATE_FORMAT(#{startTime}, '%y %m %d')
+        </if>
+        <if test="null != endTime">
+            AND DATE_FORMAT(release_time, '%y %m %d') &lt;= DATE_FORMAT(#{endTime}, '%y %m %d')
+        </if>
+        <if test="null != activityTypeList and activityTypeList.size > 1">
+            AND activity_type IN
+            <foreach collection="activityTypeList" item="activityType" open="(" close=")" separator="," >
+                #{activityType}</foreach>
+        </if>
+        <if test="status == 1">ORDER BY create_time desc </if>
+        <if test="status == 2">ORDER BY release_time desc </if>
+    </select>
+
+    <!-- 获取排序的最大值 -->
+    <select id="getMaxSort" resultType="long">
+        SELECT max(sort) FROM zs_activity
+    </select>
+
+    <!-- 根据aid修改活动状态 -->
+    <update id="updateStatusByAid">
+        UPDATE `zs_activity` SET `status` = #{status}
+        <if test="status == 2"> , release_time = NOW()</if>
+        WHERE `aid` = #{aid}
+    </update>
+
+</mapper>

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="backstage.mapper.RolesDetailMapper">
+
+    <!-- 通用查询映射结果 -->
+    <resultMap id="BaseResultMap" type="backstage.entity.RolesDetail">
+        <id column="rdid" property="rdid" />
+        <result column="rid" property="rid" />
+        <result column="rd_type" property="rdType" />
+        <result column="mid" property="mid" />
+        <result column="read" property="read" />
+        <result column="write" property="write" />
+        <result column="create_time" property="createTime" />
+    </resultMap>
+
+</mapper>

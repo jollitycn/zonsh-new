@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="user.mapper.UserSearchMapper">
+
+    <!-- 通用查询映射结果 -->
+    <resultMap id="BaseResultMap" type="user.entity.UserSearch">
+        <id column="sid" property="sid" />
+        <result column="search_type" property="searchType" />
+        <result column="search_content" property="searchContent" />
+        <result column="create_uid" property="createUid" />
+        <result column="create_time" property="createTime" />
+    </resultMap>
+    
+    <select id="getSearchTopOractivityList" resultType="result.vo.search.SearchContentResult">
+		SELECT
+			a.tid AS tid,
+			a.topic_content AS topicContent
+		FROM
+			zs_topic a
+		WHERE
+			a.topic_content LIKE #{searchKey}
+		ORDER BY
+			a.today_sort DESC
+	</select>
+	
+	<select id="getSearchkey" resultType="result.vo.search.SearchResult">
+		SELECT
+			*,
+			t.searchCount/(t.searchTime+1) AS searchSort
+		FROM
+			(
+				SELECT
+					MAX(a.search_content) AS searchContent,
+					COUNT(1) AS searchCount,
+					TIMESTAMPDIFF(
+						HOUR,
+						MAX(a.create_time),
+						NOW()
+					) AS searchTime
+				FROM
+					zs_user_search a
+				GROUP BY
+					search_content 
+				LIMIT 5 
+			) t
+		ORDER BY searchSort DESC
+	</select>
+</mapper>

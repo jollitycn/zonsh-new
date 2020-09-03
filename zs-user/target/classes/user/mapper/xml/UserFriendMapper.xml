@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="user.mapper.UserFriendMapper">
+
+    <!-- 通用查询映射结果 -->
+    <resultMap id="BaseResultMap" type="user.entity.UserFriend">
+        <id column="ufid" property="ufid" />
+        <result column="uid" property="uid" />
+        <result column="follow_uid" property="followUid" />
+        <result column="is_friend" property="isFriend" />
+        <result column="create_time" property="createTime" />
+    </resultMap>
+
+    <!-- 统计用户关注数 -->
+    <select id="countFollowByUid" resultType="long">
+        SELECT
+            IFNULL(COUNT(1), 0)
+        FROM
+            zs_user_friend zuf
+        LEFT JOIN zs_user zu ON zuf.uid = zu.uid
+        WHERE
+            zuf.uid = #{uid}
+        AND zu.uid IS NOT NULL
+    </select>
+
+    <!-- 统计用户粉丝数 -->
+    <select id="countFansByUid" resultType="long">
+        SELECT
+            IFNULL(COUNT(1), 0)
+        FROM
+            zs_user_friend zuf
+        LEFT JOIN zs_user zu ON zuf.follow_uid = zu.uid
+        WHERE
+            zuf.follow_uid = #{uid}
+        AND zu.uid IS NOT NULL
+    </select>
+
+    <!-- 获取两用户的关注状态：返回值 0 未关注  1 已关注  2 互相关注 -->
+    <select id="getUserFollowStatus" resultType="integer">
+        SELECT
+            IFNULL(
+                (
+                    SELECT
+                        CASE is_friend
+                    WHEN 1 THEN
+                        2
+                    WHEN 0 THEN
+                        1
+                    ELSE
+                        0
+                    END
+                    FROM
+                        zs_user_friend
+                    WHERE
+                        uid = #{uid}
+                    AND follow_uid = #{followUid}
+                ),
+                0
+            )
+    </select>
+
+</mapper>

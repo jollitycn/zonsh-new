@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="backstage.mapper.AdminsMapper">
+
+    <!-- 通用查询映射结果 -->
+    <resultMap id="BaseResultMap" type="backstage.entity.Admins">
+        <id column="uaid" property="uaid"/>
+        <result column="user_code" property="userCode"/>
+        <result column="nick_name" property="nickName"/>
+        <result column="salt" property="salt"/>
+        <result column="password" property="password"/>
+        <result column="phone" property="phone"/>
+        <result column="status" property="status"/>
+        <result column="role_id" property="roleId"/>
+        <result column="create_by" property="createBy"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <select id="listAdmin" parameterType="backstage.model.dto.admin.AdminQueryDto"
+            resultType="backstage.model.vo.admin.AdminRoleVo">
+        SELECT
+        za.uaid,
+        za.nick_name AS nickName,
+        za.phone,
+        za.`status`,
+        zr.role_name AS roleName
+        FROM
+        zs_admins za
+        LEFT JOIN zs_roles zr ON zr.rid = za.role_id
+        WHERE 1=1
+        <if test="status != null and status != ''">
+            AND za.`status` = #{status}
+        </if>
+        <if test="searchContent != null and searchContent != ''">
+            AND
+            <trim prefix="(" suffix=")">
+                za.nick_name LIKE CONCAT('%',#{searchContent},'%')
+                OR za.phone LIKE CONCAT('%',#{searchContent},'%')
+            </trim>
+        </if>
+        LIMIT #{pageNum},#{pageSize}
+    </select>
+
+    <select id="countAdmin" parameterType="backstage.model.dto.admin.AdminQueryDto" resultType="java.lang.Long">
+        SELECT
+        COUNT(*)
+        FROM
+        zs_admins za
+        LEFT JOIN zs_roles zr ON zr.rid = za.role_id
+        WHERE 1=1
+        <if test="status != null and status != ''">
+            AND za.`status` = #{status}
+        </if>
+        <if test="searchContent != null and searchContent != ''">
+            AND
+            <trim prefix="(" suffix=")">
+                za.nick_name LIKE CONCAT('%',#{searchContent},'%')
+                OR za.phone LIKE CONCAT('%',#{searchContent},'%')
+            </trim>
+        </if>
+    </select>
+
+    <!-- 用户登录查询   -->
+    <select id="queryUser" parameterType="java.lang.String" resultType="backstage.entity.Admins">
+        SELECT
+	        za.role_id AS roleId,
+            za.uaid,
+            za.nick_name as nickName,
+            za.password,
+            za.phone,
+            za.`status`
+        FROM
+	        zs_admins za
+        WHERE
+	    za.nick_name = #{loginAccount}
+	    OR za.phone = #{loginAccount}
+    </select>
+    
+    <select id="getAdminList" resultType="backstage.model.vo.admin.AdminRoleVo">
+    	 SELECT
+        za.uaid,
+        za.nick_name AS nickName,
+        za.phone,
+        za.`status`,
+        zr.role_name AS roleName
+        FROM
+        zs_admins za
+        LEFT JOIN zs_roles zr ON zr.rid = za.role_id
+        WHERE
+             za.role_id != 1
+    	<if test="status != null">
+            AND za.`status` = #{status}
+        </if>
+        <if test="searchKey != null and searchKey != ''">
+            AND CONCAT(za.nick_name,za.phone) LIKE #{searchKey}
+        </if>
+        ORDER BY za.create_time DESC
+    </select>
+    
+</mapper>

@@ -1,0 +1,21 @@
+server:
+  port: 8300
+spring:
+  application:
+    name: backstage
+  datasource:
+    url: jdbc:mysql://182.61.132.78:3306/zonsh?useUnicode=true&characterEncoding=UTF-8&autoReconnect=true&failOverReadOnly=false&useSSL=false
+    username: root
+    password: zonsh654321
+    driver-class-name: com.mysql.jdbc.Driver
+    max-idle: 10
+    max-wait: 100
+    min-idle: 5
+    initial-size: 5
+eureka:
+  client:
+    serviceUrl:
+      defaultZone: http://localhost:8000/eureka/
+mybatis-plus:
+  mapper-locations: classpath:backstage/mapper/xml/*.xml
+  type-aliases-package: backstage.entity

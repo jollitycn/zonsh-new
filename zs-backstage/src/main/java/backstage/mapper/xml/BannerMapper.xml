@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="backstage.mapper.BannerMapper">
+
+    <!-- 通用查询映射结果 -->
+    <resultMap id="BaseResultMap" type="backstage.entity.Banner">
+        <id column="bid" property="bid" />
+        <result column="aid" property="aid" />
+        <result column="cover_url" property="coverUrl" />
+        <result column="banner_type" property="bannerType" />
+        <result column="view_count" property="viewCount" />
+        <result column="sort" property="sort" />
+        <result column="enabled_flag" property="enabledFlag" />
+        <result column="create_time" property="createTime" />
+        <result column="create_by" property="createBy" />
+        <result column="update_time" property="updateTime" />
+        <result column="update_by" property="updateBy" />
+    </resultMap>
+
+    <resultMap id="BannerAndActivityResult" type="result.vo.activity.BannerAndActivityResult">
+        <id column="bid" property="bid" />
+        <result column="aid" property="aid" />
+        <result column="cover_url" property="coverUrl" />
+        <result column="banner_type" property="bannerType" />
+        <result column="view_count" property="viewCount" />
+        <result column="activity_title" property="activityTitle" />
+    </resultMap>
+
+    <!-- 获取所有banner详情 -->
+    <select id="listAllBanner" resultMap="BannerAndActivityResult">
+        SELECT * FROM zs_banner b LEFT JOIN zs_activity a ON b.aid = a.aid
+        ORDER BY b.sort DESC
+        LIMIT 7
+    </select>
+
+    <!-- 通过banner浏览活动时，浏览量+1 -->
+    <update id="viewActivity">
+        UPDATE zs_banner SET view_count = view_count + 1 WHERE aid = #{id}
+    </update>
+
+    <!-- 获取排序的最大值 -->
+    <select id="getMaxSort" resultType="long">
+        SELECT max(sort) FROM zs_banner
+    </select>
+
+    <!-- 交换两个banner的sort值 -->
+    <update id="exchangeBannerSort">
+        UPDATE
+            zs_banner a
+        JOIN
+            zs_banner b
+        ON
+            (a.bid = #{originBid} AND b.bid = #{aimBid}) OR (a.bid = #{aimBid} AND b.bid = #{originBid})
+        SET
+            a.sort = b.sort , b.sort = a.sort
+    </update>
+
+</mapper>

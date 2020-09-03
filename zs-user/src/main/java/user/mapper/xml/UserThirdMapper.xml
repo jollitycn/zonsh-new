@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="user.mapper.UserThirdMapper">
+
+    <!-- 通用查询映射结果 -->
+    <resultMap id="BaseResultMap" type="user.entity.UserThird">
+        <id column="uhid" property="uhid" />
+        <result column="uid" property="uid" />
+        <result column="third_type" property="thirdType" />
+        <result column="third_key" property="thirdKey" />
+        <result column="third_key_all" property="thirdKeyAll" />
+        <result column="access_token" property="accessToken" />
+        <result column="refresh_token" property="refreshToken" />
+        <result column="expires_in" property="expiresIn" />
+        <result column="create_time" property="createTime" />
+        <result column="update_time" property="updateTime" />
+    </resultMap>
+
+</mapper>

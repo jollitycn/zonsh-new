@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="backstage.mapper.SystemBulletinMapper">
+
+    <!-- 通用查询映射结果 -->
+    <resultMap id="BaseResultMap" type="backstage.entity.SystemBulletin">
+        <id column="bnid" property="bnid"/>
+        <result column="number" property="number"/>
+        <result column="bulletin_content" property="bulletinContent"/>
+        <result column="browse_count" property="browseCount"/>
+        <result column="status" property="status"/>
+        <result column="release_time" property="releaseTime"/>
+        <result column="create_id" property="createId"/>
+        <result column="create_time" property="createTime"/>
+    </resultMap>
+
+    <select id="getBulletinList" resultType="result.vo.admin.BulletinResult">
+   select s.bnid,
+     s.number,
+     s.bulletin_title as bulletinTitle,
+     s.bulletin_content as bulletinContent,
+     s.browse_count as browseCount,
+     s.status,
+     s.release_time as releaseTime
+     from zs_system_bulletin s
+     where 1=1
+    <if test="searchKey!=null">
+      and  s.bulletin_content like #{searchKey}
+    </if>
+    and s.`status`=#{status}
+    order by  s.release_time desc
+    </select>
+    <update id="addBulletinViewCount">
+        update zs_system_bulletin set browse_count=(browse_count+1) where bnid=#{bnid}
+
+    </update>
+</mapper>

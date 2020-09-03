@@ -1,0 +1,18 @@
+server:
+  port: 8500
+  tomcat:
+    max-http-post-size: -1
+spring:
+  application:
+    name: upload
+  servlet:
+    multipart:
+      max-file-size: 30Mb
+      max-request-size: 30Mb
+      
+eureka:
+  client:
+    serviceUrl:
+     #defaultZone: http://182.61.132.78:8000/eureka/
+      defaultZone: http://49.234.150.30:8000/eureka/
+

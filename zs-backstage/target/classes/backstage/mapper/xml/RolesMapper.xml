@@ -1,0 +1,151 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="backstage.mapper.RolesMapper">
+
+    <!-- 通用查询映射结果 -->
+    <resultMap id="BaseResultMap" type="backstage.entity.Roles">
+        <id column="rid" property="rid" />
+        <result column="role_code" property="roleCode" />
+        <result column="role_name" property="roleName" />
+        <result column="describe" property="describe" />
+        <result column="create_by" property="createBy" />
+        <result column="create_time" property="createTime" />
+        <result column="update_id" property="updateId" />
+        <result column="updata_time" property="updataTime" />
+    </resultMap>
+    
+    <!-- 获取权限详情 -->
+    <resultMap id="RoleDetailResultMap" type="result.vo.admin.RolesDeatilResult">
+        <id column="rid" property="rid" />
+        <result column="role_code" property="roleCode" />
+        <result column="role_name" property="roleName" />
+        <collection column="rid" select="getRoleMode" property="roleModeList"/>
+    </resultMap>
+    <resultMap id="RoleModeResult" type="result.vo.admin.RoleMode">
+        <id column="rdid" property="rdid" />
+        <result column="rid" property="rid" />
+        <result column="mid" property="mid" />
+        <result column="menuCode" property="menuCode" />
+        <result column="menuName" property="menuName" />
+		<result column="routeName" property="routeName"/>
+		<result column="icon" property="icon"/>
+        <collection column="{rid=rid,mid=mid}" select="getRolePage" property="pageList"/>
+    </resultMap>
+    <select id="getRoleDetail" resultMap="RoleDetailResultMap">
+	SELECT
+		rid,
+		role_code,
+		role_name
+	FROM
+		zs_roles
+	WHERE
+		rid = #{rid}
+    </select>
+	<select id="getRoleMode" resultMap="RoleModeResult">
+	  SELECT
+		a.rdid,
+		a.rid,
+		b.mid,
+		b.menu_code AS menuCode,
+		b.menu_name AS menuName,
+		b.route_name AS routeName,
+		b.icon
+	FROM
+		zs_roles_detail a
+	LEFT JOIN zs_menus b ON a.mid = b.mid
+	WHERE
+		a.rid = #{rid} AND a.rd_type=1
+    </select>
+	<select id="getRolePage" resultType="result.vo.admin.RolePage">
+	 SELECT
+		a.rdid,
+		b.menu_code AS menuCode,
+		b.menu_name AS menuName,
+		b.route_name AS routeName,
+		b.icon,
+		b.url,
+		a.`write`,
+		a.`read`
+	FROM
+		zs_roles_detail a
+	LEFT JOIN zs_menus b ON a.mid = b.mid
+	WHERE
+		a.rid = #{rid} AND b.parent_menu=#{mid} AND a.rd_type=2
+    </select>
+
+	<!-- 获取用户菜单 -->
+	 <resultMap id="UserMenusMap" type="result.vo.admin.RoleMode">
+        <id column="rdid" property="rdid" />
+        <result column="rid" property="rid" />
+        <result column="mid" property="mid" />
+        <result column="menuCode" property="menuCode" />
+        <result column="menuName" property="menuName" />
+		<result column="routeName" property="routeName"/>
+		<result column="icon" property="icon"/>
+        <collection column="{rid=rid,mid=mid}" select="getUserPage" property="pageList"/>
+    </resultMap>
+	<select id="getUserMenus" resultMap="UserMenusMap">
+				SELECT
+			a.rdid,
+			a.rid,
+			b.mid,
+			b.menu_code AS menuCode,
+			b.menu_name AS menuName,
+			b.route_name AS routeName,
+			b.icon
+		FROM
+			zs_roles_detail a
+		LEFT JOIN zs_menus b ON a.mid = b.mid
+		WHERE
+			a.rid = #{rid}
+		AND a.rd_type = 1
+		AND a.mid IN (
+			SELECT
+				d.parent_menu 
+			FROM
+				zs_roles_detail c
+			LEFT JOIN zs_menus d ON c.mid = d.mid
+			WHERE
+				c.rid = a.rid
+			AND c.rd_type = 2
+			AND c.`read` = 1
+			GROUP BY
+				d.parent_menu
+		)	 
+    </select>
+	<select id="getUserPage" resultType="result.vo.admin.RolePage">
+		 SELECT
+		a.rdid,
+		b.menu_code AS menuCode,
+		b.menu_name AS menuName,
+		b.route_name AS routeName,
+		b.icon,
+		b.url,
+		a.`write`,
+		a.`read`
+	FROM
+		zs_roles_detail a
+	LEFT JOIN zs_menus b ON a.mid = b.mid
+	WHERE
+		a.rid = #{rid} AND b.parent_menu=#{mid} AND a.rd_type=2 AND a.`read` = 1
+    </select>
+	
+	<select id="getRole" resultType="result.vo.admin.RolePage">
+		SELECT
+		a.rdid,
+		b.menu_code AS menuCode,
+		b.menu_name AS menuName,
+		b.route_name AS routeName,
+		b.icon,
+		b.url,
+		a.`write`,
+		a.`read`
+	FROM
+		zs_roles_detail a
+	LEFT JOIN zs_menus b ON a.mid = b.mid
+	WHERE
+		a.rid = #{rid} AND rd_type=2
+	</select>
+	
+	
+</mapper>

@@ -1,0 +1,289 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="user.mapper.MessageMapper">
+
+    <!-- 通用查询映射结果 -->
+    <resultMap id="BaseResultMap" type="user.entity.Message">
+        <id column="mid" property="mid" />
+        <result column="type" property="type" />
+        <result column="from_uid" property="fromUid" />
+        <result column="relation_id" property="relationId" />
+        <result column="message_title" property="messageTitle" />
+        <result column="message_content" property="messageContent" />
+        <result column="is_view" property="isView" />
+        <result column="create_uid" property="createUid" />
+        <result column="create_uid_type" property="createUidType" />
+        <result column="push_id" property="pushId" />
+        <result column="create_time" property="createTime" />
+    </resultMap>
+    
+    <select id="getMessageType" resultType="result.vo.message.MessageTypeResult">
+		SELECT
+			MAX(a.type) AS messageType,
+			MAX(a.message_title) AS messageTitle,
+			MAX(a.message_content) AS messageContent,
+			COUNT(1) AS newMessageCount,
+			MAX(a.create_time) AS lastUpdateTime
+		FROM
+			zs_message a WHERE a.from_uid=#{uid}
+		GROUP BY a.type
+    </select>
+
+	<select id="getMessageList" resultType="result.vo.message.MessageResult">
+			<!-- SELECT
+			a.mid,
+			a.message_title AS messageTitle,
+			a.create_uid_type AS isAdmin,
+			b.topic_content AS topicContent,
+			a.create_time AS createTime,
+			(
+				SELECT
+					COUNT(1)
+				FROM
+					zs_answer c
+				WHERE
+					c.uid = a.from_uid
+				AND c.tid = a.relation_id
+			) AS isAnswer,
+			a.is_view AS isView
+		FROM
+			zs_message a
+		LEFT JOIN zs_topic b ON a.relation_id = b.tid
+		WHERE
+			a.type = 2
+		AND a.from_uid = #{uid}-->
+		SELECT
+			a.relation_id AS relationId,
+			MAX(b.topic_content) AS topicContent,
+			MAX(a.create_time) AS createTime,
+			MAX(a.is_view) AS isView,
+			MAX(a.create_uid_type) AS isAdmin,
+			(
+				SELECT
+					COUNT(1)
+				FROM
+					zs_answer c
+				WHERE
+					c.uid = #{uid}
+				AND c.tid = a.relation_id
+			) AS isAnswer,
+			MAX((
+				SELECT
+					d.aid
+				FROM
+					zs_answer d
+				WHERE
+					d.uid = 22
+				AND d.tid = a.relation_id
+			)) AS aid
+		FROM
+			zs_message a
+		LEFT JOIN zs_topic b ON a.relation_id = b.tid
+		WHERE
+			a.type = 2
+		AND a.from_uid = #{uid} 
+		GROUP BY
+			a.relation_id
+		ORDER BY createTime DESC
+	</select>
+
+	<select id="getAssistantMessage" resultType="result.vo.message.MessageTypeResult">
+	SELECT
+		a.type AS messageType,
+		a.message_title AS messageTitle,
+		a.message_content AS messageContent,
+		(SELECT COUNT(1) FROM zs_message b WHERE b.type=1 AND b.is_view=0) AS newMessageCount,
+		a.create_time AS lastUpdateTime
+	FROM
+		zs_message a
+	WHERE
+		a.type = 1
+	ORDER BY a.create_time DESC 
+	LIMIT 1
+	</select>
+
+	<select id="getInvitationMessage" resultType="result.vo.message.MessageTypeResult">
+		SELECT
+			a.type AS messageType,
+			a.message_title AS messageTitle,
+			c.topic_content AS messageContent,
+			(
+				SELECT
+					COUNT(1)
+				FROM
+					zs_message b
+				WHERE
+					b.type = 2
+				AND b.is_view = 0
+				AND b.from_uid = #{uid}
+			) AS newMessageCount,
+			a.create_time AS lastUpdateTime,
+			a.relation_id AS relationId
+		FROM
+			zs_message a
+		LEFT JOIN zs_user b ON a.create_uid = b.uid
+		LEFT JOIN zs_topic c ON c.tid = a.relation_id
+		WHERE
+			a.type = 2
+		AND a.from_uid = #{uid}
+		ORDER BY
+			a.create_time DESC
+		LIMIT 1
+	</select>
+	
+	<select id="getInvitationMessageCount" resultType="string">
+		SELECT
+			IFNULL(b.uname,'官方')
+		FROM
+			zs_message a
+		LEFT JOIN zs_user b ON a.create_uid = b.uid
+		WHERE
+			a.type = 2
+		AND a.relation_id = #{tid} AND a.from_uid=#{uid}
+		ORDER BY a.create_uid_type DESC
+	</select>
+
+	<select id="getfollowMessage"  resultType="result.vo.message.MessageTypeResult">
+		SELECT
+			a.type AS messageType,
+			CONCAT(b.uname, a.message_title) AS messageTitle,
+			a.message_content AS messageContent,
+			(
+				SELECT
+					COUNT(1)
+				FROM
+					zs_message b
+				WHERE
+					b.type = 4
+				AND b.is_view = 0
+				AND b.from_uid = #{uid}
+			) AS newMessageCount,
+			a.create_time AS lastUpdateTime,
+			a.relation_id AS relationId
+		FROM
+			zs_message a
+		LEFT JOIN zs_user b ON a.create_uid = b.uid
+		LEFT JOIN zs_topic c ON c.tid = a.relation_id
+		WHERE
+			a.type = 4
+		AND a.from_uid = #{uid}
+		ORDER BY
+			a.create_time DESC
+		LIMIT 1
+	</select>
+
+	<select id="getCommentMessage"  resultType="result.vo.message.MessageTypeResult">
+		SELECT
+			a.type AS messageType,
+			CONCAT(b.uname, a.message_title) AS messageTitle,
+			a.message_content AS messageContent,
+			(
+				SELECT
+					COUNT(1)
+				FROM
+					zs_message b
+				WHERE
+					b.type = 3
+				AND b.is_view = 0
+				AND b.from_uid = #{uid}
+			) AS newMessageCount,
+			a.create_time AS lastUpdateTime,
+			a.relation_id AS relationId
+		FROM
+			zs_message a
+		LEFT JOIN zs_user b ON a.create_uid = b.uid
+		LEFT JOIN zs_topic c ON c.tid = a.relation_id
+		WHERE
+			a.type = 3
+		AND a.from_uid = #{uid}
+		ORDER BY
+			a.create_time DESC
+		LIMIT 1
+	</select>
+
+	<!-- 根据用户uid分页获取该用户的互动消息 -->
+	<select id="listInteractivePage" resultType="result.vo.message.InteractiveMessageResult">
+		SELECT
+			zm.mid,
+			zm.message_title,
+			zm.message_content,
+			zm.relation_id,
+			zc.`status` commentStatus,
+			zc.aid,
+			(SELECT za.tid FROM zs_answer za WHERE za.aid = zc.aid) tid,
+			zm.is_view,
+			zu.uid,
+			zu.uname,
+			zu.headurl headUrl,
+			UNIX_TIMESTAMP(zm.create_time) * 1000 createTime
+		FROM
+			zs_message zm
+		LEFT JOIN zs_comment zc ON zm.relation_id = zc.cid
+		LEFT JOIN zs_user zu ON zm.create_uid = zu.uid
+		WHERE
+			(zm.from_uid = #{uid} OR zm.from_uid IS NULL)
+		AND zm.type = 3
+		AND zc.`status` != 2
+		ORDER BY
+			zm.create_time DESC
+	</select>
+
+	<!-- 根据用户uid分页获取该用户的关注消息 -->
+	<select id="listFollowPage" resultType="result.vo.message.FollowMessageResult">
+		SELECT
+			zm.mid,
+			zm.message_title,
+			zm.message_content,
+			zm.relation_id,
+			zm.is_view,
+			zu.uid,
+			zu.uname,
+			zu.headurl headUrl,
+			IFNULL(
+				(
+					SELECT
+						CASE zuf.is_friend
+							WHEN 1 THEN 2
+							WHEN 0 THEN 1
+							ELSE 0
+						END
+					FROM
+						zs_user_friend zuf
+					WHERE
+						zuf.uid = #{uid}
+					AND zuf.follow_uid = zm.create_uid
+					AND zm.create_uid_type = 0
+					),
+				0
+				) AS followStatus,
+			UNIX_TIMESTAMP(zm.create_time) * 1000 createTime
+		FROM
+			zs_message zm
+		LEFT JOIN zs_user zu ON zm.create_uid = zu.uid
+		WHERE
+			(zm.from_uid = #{uid} OR zm.from_uid IS NULL)
+		AND zm.type = 4
+		ORDER BY
+			zm.create_time DESC
+	</select>
+
+	<!-- 根据用户uid分页获取该用户的小助手消息列表 -->
+	<select id="listHelperPage" resultType="result.vo.message.HelperMessageResult">
+		SELECT
+			zm.mid,
+			zm.message_title,
+			zm.message_content,
+			zm.relation_id,
+			zm.is_view,
+			UNIX_TIMESTAMP(zm.create_time) * 1000 createTime
+		FROM
+			zs_message zm
+		LEFT JOIN zs_user zu ON zm.create_uid = zu.uid
+		WHERE
+			(zm.from_uid = #{uid} OR zm.from_uid IS NULL)
+		AND zm.type = 1
+		ORDER BY
+			zm.create_time DESC
+	</select>
+
+</mapper>

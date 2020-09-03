@@ -1,0 +1,282 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="social.mapper.CommentMapper">
+
+    <!-- 通用查询映射结果 -->
+    <resultMap id="BaseResultMap" type="social.entity.Comment">
+        <id column="cid" property="cid" />
+        <result column="uid" property="uid" />
+        <result column="aid" property="aid" />
+        <result column="comment_type" property="commentType" />
+        <result column="comment_content" property="commentContent" />
+        <result column="data_type" property="dataType" />
+        <result column="parent_cid" property="parentCid" />
+        <result column="replied_uid" property="repliedUid" />
+        <result column="comment_code" property="commentCode" />
+        <result column="like_count" property="likeCount" />
+        <result column="status" property="status" />
+        <result column="create_time" property="createTime" />
+    </resultMap>
+
+    <!-- 根据一级评论的commentCode获取下面所有的评论 -->
+    <select id="listReplyByCommentCode" resultType="result.vo.comment.CommentReplyResult">
+        SELECT
+            zc.cid,
+            zc.parent_cid parentCid,
+            zc.replied_uid repliedUid,
+            zu2.uname repliedUname,
+            zc.comment_content commentContent,
+            zc.like_count likeCount,
+            UNIX_TIMESTAMP(zc.create_time) * 1000 createTime,
+            zc.uid,
+            zc.`status`,
+            zu.uname createUname,
+            zu.headurl headUrl,
+            zu.user_signature userSignature,
+            (
+                SELECT
+                    COUNT(1)
+                FROM
+                    zs_user_like
+                WHERE
+                    uid = #{uid}
+                AND like_type = 4
+                AND data_id = zc.cid
+                LIMIT 1
+            ) AS isLike,
+            (
+                SELECT
+                    COUNT(1)
+                FROM
+                    zs_user_collection
+                WHERE
+                    uid = #{uid}
+                AND collection_type = 4
+                AND data_id = zc.cid
+                LIMIT 1
+            ) AS isCollection,
+            (
+                SELECT
+                    COUNT(1)
+                FROM
+                    zs_report
+                WHERE
+                    uid = #{uid}
+                AND type = 4
+                AND id = zc.cid
+                AND operate_id IS NULL
+                ORDER BY
+                    create_time
+                LIMIT 1
+            ) AS isReport
+        FROM
+            zs_comment zc
+        LEFT JOIN zs_user zu ON zc.uid = zu.uid
+        LEFT JOIN zs_user zu2 ON zc.replied_uid = zu2.uid
+        WHERE
+            zc.`status` != 2
+        AND zc.comment_code LIKE CONCAT(#{commentCode}, '%')
+        AND zc.data_type != 1
+        ORDER BY
+            zc.create_time DESC
+    </select>
+
+    <!-- 根据问题id查询回答标题 -->
+    <select id="getAnswerTitleByAid" resultType="java.lang.String">
+        SELECT answer_title commentTypeContent FROM zs_answer
+        WHERE aid = #{aid}
+    </select>
+
+    <!-- 根据活动id查询活动标题 -->
+    <select id="getActivityTitleByAid" resultType="java.lang.String">
+        SELECT zs_activity commentTypeContent FROM zs_activity
+        WHERE aid = #{aid}
+    </select>
+
+    <!--根据cid修改评论已删除的状态，包含下级评论-->
+    <update id="deleteCommentWithLowerByCid">
+        UPDATE zs_comment
+        SET `status` = 0
+        WHERE
+            comment_code LIKE CONCAT(
+                (
+                    SELECT
+                        temp.comment_code
+                    FROM
+                        (
+                            SELECT
+                                comment_code
+                            FROM
+                                zs_comment
+                            WHERE
+                                cid = #{cid}
+                            AND uid = #{loginUid}
+                        ) temp
+                ),
+                '%'
+            )
+    </update>
+
+    <!-- 删除自己评论的评论:由下级评论或者回复则删除不了（即最多可删一条） -->
+    <delete id="deleteCommentByCid">
+        DELETE
+        FROM
+            zs_comment
+        WHERE
+            cid = #{cid}
+        AND uid = #{loginUid}
+        AND (
+            SELECT
+                temp.countLower
+            FROM
+                (
+                    SELECT
+                        COUNT(1) countLower
+                    FROM
+                        zs_comment
+                    WHERE
+                        comment_code LIKE CONCAT(
+                            (
+                                SELECT
+                                    comment_code
+                                FROM
+                                    zs_comment
+                                WHERE
+                                    cid = #{cid}
+                                AND uid = #{loginUid}
+                            ),
+                            '%'
+                        )
+                ) temp
+        ) = 1
+    </delete>
+
+    <!-- web端 分页查询评论的列表 -->
+    <select id="listCommentAndReplyPage" resultType="result.vo.comment.CommentOrReplyResult">
+        SELECT
+            zc.cid,
+            zc.comment_content commentContent,
+            zc.aid,
+            zc.comment_type commentType,
+            zu.uname commentUname,
+            zc.create_time createTime
+        FROM
+            zs_comment zc
+        LEFT JOIN zs_user zu ON zc.uid = zu.uid
+        WHERE
+            zc.`status` = #{status}
+        <if test="null != searchKey and searchKey != ''">
+            AND (
+            zc.comment_content LIKE CONCAT('%', #{searchKey}, '%')
+            or zu.uname LIKE CONCAT('%', #{searchKey}, '%')
+            )
+        </if>
+        <if test="null != startTime">
+            AND DATE_FORMAT(zc.create_time, '%y %m %d') &gt;= DATE_FORMAT(#{startTime}, '%y %m %d')
+        </if>
+        <if test="null != endTime">
+            AND DATE_FORMAT(zc.create_time, '%y %m %d') &lt;= DATE_FORMAT(#{endTime}, '%y %m %d')
+        </if>
+        <if test="null != typeList and typeList.size > 0">
+            AND zc.comment_type IN
+            <foreach collection="typeList" item="commentType" open="(" close=")" separator="," >
+                #{commentType}
+            </foreach>
+        </if>
+        ORDER BY zc.create_time DESC
+    </select>
+
+    <!-- 屏蔽评论包含下级 -->
+    <update id="updateStatusWithLowerByCid">
+        UPDATE zs_comment
+        SET `status` = #{status}
+        WHERE
+            comment_code LIKE CONCAT(
+                (
+                    SELECT
+                        temp.comment_code
+                    FROM
+                        (
+                            SELECT
+                                comment_code
+                            FROM
+                                zs_comment
+                            WHERE
+                                cid = #{cid}
+                        ) temp
+                ),
+                '%'
+            )
+    </update>
+
+    <update id="deleteCommentByAid">
+        update zs_comment set status=0 where aid=#{aid} and comment_type=1
+    </update>
+
+    <select id="getCommentReportList" resultType="result.vo.comment.CommentReportResult">
+        SELECT
+        zr.arid,
+        zr.report_title as reportTitle,
+        zr.create_time as reportTime,
+        u.uname as reportUName,
+        zc.cid,
+        zc.comment_content commentContent,
+        zc.aid,
+        zc.comment_type commentType,
+        zu.uname commentUname,
+        zc.create_time createTime
+        FROM zs_report zr
+        inner JOIN zs_comment zc on zc.cid=zr.id
+        LEFT JOIN zs_user zu ON zc.uid = zu.uid
+        LEFT JOIN zs_user u ON  u.uid=zr.uid
+        WHERE zr.type=4
+
+        <if test="null != searchKey and searchKey != ''">
+            AND (
+            zc.comment_content LIKE CONCAT('%', #{searchKey}, '%')
+            or zu.uname LIKE CONCAT('%', #{searchKey}, '%')
+            )
+        </if>
+        <if test="null != startTime">
+            AND DATE_FORMAT(zc.create_time, '%y %m %d') &gt;= DATE_FORMAT(#{startTime}, '%y %m %d')
+        </if>
+        <if test="null != endTime">
+            AND DATE_FORMAT(zc.create_time, '%y %m %d') &lt;= DATE_FORMAT(#{endTime}, '%y %m %d')
+        </if>
+        <if test="null != commentTypeList and commentTypeList.size > 0">
+            AND zc.comment_type IN
+            <foreach collection="commentTypeList" item="commentType" open="(" close=")" separator="," >
+                #{commentType}
+            </foreach>
+        </if>
+        ORDER BY zr.create_time DESC
+    </select>
+
+    <!-- 点赞：根据主键id点赞数+1 -->
+    <update id="userGiveLike">
+		UPDATE zs_comment
+		SET like_count = like_count + 1
+		WHERE
+			cid = #{cid}
+	</update>
+
+    <!-- 取消点赞：根据主键id点赞数-1 -->
+    <update id="cancelUserLike">
+		UPDATE zs_comment
+		SET like_count = like_count - 1
+		WHERE
+			cid = #{cid}
+	</update>
+
+    <!-- 根据用户uid查询该用户所有【正常】评论获得的总赞数 -->
+    <select id="countCommentLikeTotalByUid" resultType="long">
+		SELECT
+			IFNULL(SUM(like_count), 0)
+		FROM
+			zs_comment
+		WHERE
+			uid = #{uid}
+		AND `status` = 1
+	</select>
+
+</mapper>

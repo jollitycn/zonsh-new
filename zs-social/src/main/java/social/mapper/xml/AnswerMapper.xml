@@ -1,0 +1,534 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="social.mapper.AnswerMapper">
+
+    <!-- 通用查询映射结果 -->
+    <resultMap id="BaseResultMap" type="social.entity.Answer">
+        <id column="aid" property="aid"/>
+        <result column="tid" property="tid"/>
+        <result column="uid" property="uid"/>
+        <result column="answer_number" property="answerNumber"/>
+        <result column="answer_title" property="answerTitle"/>
+        <result column="answer_content" property="answerContent"/>
+        <result column="status" property="status"/>
+        <result column="from" property="from"/>
+        <result column="sort" property="sort"/>
+        <result column="like_count" property="likeCount"/>
+        <result column="view_count" property="viewCount"/>
+        <result column="release_time" property="releaseTime"/>
+        <result column="update_time" property="updateTime"/>
+        <result column="create_time" property="createTime"/>
+    </resultMap>
+
+    <resultMap id="AppAnswerResultMap" type="result.vo.AnswerReuslt">
+        <id column="aid" property="aid"/>
+        <result column="uid" property="uid"/>
+        <result column="uname" property="uname"/>
+        <result column="userLabel" property="userLabel"/>
+        <result column="headurl" property="headurl"/>
+        <result column="answerTitle" property="answerTitle"/>
+        <result column="content" property="content"/>
+        <result column="likeCount" property="likeCount"/>
+        <result column="commentCount" property="commentCount"/>
+        <result column="releaseTime" property="releaseTime"/>
+        <collection property="urlList" column="aid" javaType="list"
+                    select="getImageUrl"/>
+    </resultMap>
+    <!--  <resultMap id="DetailResultMap" type="result.vo.comment.AnswerDetailPc">
+        <result column="aid" property="aid" />
+        <result column="tid" property="tid" />
+        <result column="uid" property="uid" />
+        <result column="answerTitle" property="answerTitle" />
+        <result column="answerNumber" property="answerNumber" />
+        <result column="status" property="status" />
+        <result column="time" property="time" />
+        <result column="likeCount" property="likeCount" />
+        <result column="answerContent" property="answerContent" />
+          <collection column="tid"
+            select="AnswerMapper.getAnswerCountByTid"
+            property="answerCount"></collection>
+        <collection column="aid"
+            select="AnswerMapper.getCommentCountByAid"
+            property="commentCount"></collection>
+    </resultMap>-->
+    <select id="getAppAnswerList" parameterType="long" resultMap="AppAnswerResultMap">
+        SELECT
+        a.aid,
+        b.uid,
+        a.`status`,
+        b.uname,
+        b.user_signature AS userLabel,
+        b.headurl,
+        a.answer_title AS answerTitle,
+        a.answer_content AS content,
+        a.like_count AS likeCount,
+        (
+        SELECT
+        COUNT(1) FROM zs_comment c WHERE c.aid=a.aid AND c.comment_type = 1 AND c.`status` = 1
+        ) AS commentCount,
+        UNIX_TIMESTAMP(a.release_time) * 1000 as releaseTime
+        FROM
+        zs_answer a
+        LEFT JOIN zs_user b ON a.uid = b.uid
+        WHERE a.tid=#{tid}
+        <if test="uid==null or uid == 0L">
+            AND a.`status`=0
+            ORDER BY a.sort DESC
+        </if>
+        <if test="uid!=null and uid != 0L">
+            AND (a.`status`=0 OR a.`status`=2 AND a.uid=#{uid})
+            ORDER BY a.uid=#{uid} DESC, a.sort DESC
+        </if>
+
+    </select>
+
+    <!-- 获取回答的图片 -->
+    <select id="getImageUrl" parameterType="long" resultType="string">
+		SELECT
+		image_url FROM zs_answer_image WHERE aid=#{aid}
+	</select>
+
+
+    <select id="getReplySearchList" resultType="result.vo.TopicReplyResult">
+        SELECT
+        a.aid,
+        a.tid,
+        a.uid,
+        a.answer_content as answerContent ,
+        a.release_time as publishTime,
+        a.like_count as likeCount,
+        a.view_count
+        as readCount
+        FROM
+        zs_answer a
+        where a.status=#{status}
+        <if test="startTime!=null and endTime!=null">
+            and a.release_time>=#{status} and a.release_time
+            &lt;=#{endTime}
+        </if>
+        <if test="replyTopicList!=null">
+            and (a.tid in
+            <foreach collection="replyTopicList" index="index" item="topicName"
+                     open="(" separator="," close=")">
+                #{topicName.tid}
+            </foreach>
+            <if test="replyUserInfo!=null">
+                or a.uid in
+                <foreach collection="replyTopicList" index="index" item="user"
+                         open="(" separator="," close=")">
+                    #{user.id}
+                </foreach>
+                )
+            </if>
+        </if>
+        <if test="minCount!=null">
+            and a.view_count >=#{minCount}
+        </if>
+        <if test="maxCount!=null  ">
+            and a.view_count &lt;=#{maxCount}
+        </if>
+        order by a.release_time desc
+    </select>
+
+    <select id="getPcAnswerList" resultType="result.vo.TopicReplyResult">
+        SELECT
+        a.aid,
+        a.tid,
+        a.uid,
+        a.answer_title AS answerTitle,
+        a.answer_content AS answerContent,
+        UNIX_TIMESTAMP(a.release_time) * 1000 AS publishTime,
+        a.like_count AS likeCount,
+        a.view_count AS readCount,
+        (
+        SELECT COUNT(1) FROM zs_comment d
+        WHERE d.aid=a.aid AND d.comment_type = 1 AND d.`status` = 1
+        ) AS commentCount,
+        c.uname AS uName,
+        b.topic_content AS topic
+        FROM
+        zs_answer a
+        LEFT JOIN zs_topic b ON a.tid=b.tid
+        LEFT JOIN zs_user c ON a.uid=c.uid
+        WHERE 1=1
+
+        <if test="status!=null">
+            AND a.status=#{status}
+        </if>
+
+        <if test="startTime!=null and endTime!=null">
+            AND DATE_FORMAT(a.release_time,'%Y-%m-%d') &gt;=#{startTime}
+            AND DATE_FORMAT(a.release_time,'%Y-%m-%d') &lt;=#{endTime}
+        </if>
+
+        <if test='count!=null and count=="0"'>
+            and a.view_count &lt;500
+        </if>
+
+        <if test='count!=null and count=="1"'>
+            AND a.view_count BETWEEN 500 AND 2000
+        </if>
+
+        <if test='count!=null and count=="2"'>
+            AND a.view_count &gt;2000
+        </if>
+
+        <if test="searchKey!=null ">
+            AND (c.uname LIKE #{searchKey} OR b.topic_content LIKE #{searchKey})
+        </if>
+
+        ORDER BY a.release_time DESC
+
+    </select>
+
+
+    <!--  <select id="getAnswerDetail" resultMap="DetailResultMap">-->
+    <select id="getAnswerDetail" resultType="result.vo.comment.AnswerDetail">
+		SELECT
+			za.aid,
+			za.tid,
+			za.uid,
+			za.answer_number AS answerNumber,
+			za.answer_title AS answerTitle,
+			za.`status`,
+			za.like_count AS likeCount,
+			UNIX_TIMESTAMP(za.release_time) * 1000 AS commentTime,
+			za.answer_content AS answerContent,
+			(
+				SELECT
+					COUNT(1) AS count
+				FROM
+					zs_answer a
+				WHERE
+					a.tid = za.tid
+				AND a.`status` = 0
+			) AS answerCount,
+			(
+
+					SELECT COUNT(1) FROM zs_comment d
+			WHERE d.aid=za.aid AND d.comment_type = 1 AND d.`status` = 1
+			) AS commentCount,
+			b.uname,
+			b.headurl AS headUrl
+		FROM
+			zs_answer za
+		LEFT JOIN zs_user b ON za.uid=b.uid
+		WHERE
+			za.aid = #{aid}
+	</select>
+
+
+    <select id="getAnswerDetailPc" resultType="result.vo.comment.AnswerDetailPc">
+        SELECT
+        za.aid,
+        za.tid,
+        za.uid,
+        za.answer_number AS answerNumber,
+        za.answer_title AS answerTitle,
+        za.`status`,
+        za.like_count AS likeCount,
+        UNIX_TIMESTAMP(za.release_time) * 1000 AS commentTime,
+        za.answer_content AS answerContent,
+        (
+        SELECT
+        COUNT(1) AS count
+        FROM
+        zs_answer a
+        WHERE
+        a.tid = za.tid
+        AND a.`status` = 0
+        ) AS answerCount,
+        (
+        SELECT
+        COUNT(DISTINCT zac.uid)
+        FROM
+        zs_comment zac
+        WHERE
+        zac.aid = za.aid
+        ) AS commentCount,
+        b.uname,
+        b.headurl AS headUrl,
+        zr.arid,
+        zr.report_title as reportTitle,
+        zr.report_content as reportContent,
+        zr.create_time as reportTime,
+        zu.uname as reportUname,
+        zu.headurl as reportHeadurl
+        FROM
+        zs_answer za
+        LEFT JOIN zs_user b ON b.uid=za.uid
+        LEFT JOIN zs_report zr on zr.id=za.aid and zr.type=1
+        LEFT JOIN zs_user zu on zu.uid=zr.uid
+        WHERE
+        za.aid = #{aid}
+        <if test="arid!=null and arid!=-1">
+            and zr.arid=#{arid}
+        </if>
+    </select>
+
+    <select id="getAnswerCountByTid" resultType="Integer">
+		SELECT
+		COUNT(DISTINCT za.uid) as count
+		FROM
+		zs_answer za
+		where za.tid=#{tid}
+	</select>
+    <select id="getCommentCountByAid" resultType="Integer">
+		SELECT
+		COUNT(DISTINCT zac.uid)
+		FROM
+		zs_comment zac
+		WHERE
+		zac.aid = #{aid}
+	</select>
+
+    <select id="getMyAnswerListRpc" resultType="result.vo.MyAnswerResult">
+		SELECT 
+			aid,tid,uid,
+			answer_content AS answerContent,
+			status,
+			UNIX_TIMESTAMP(release_time) * 1000 AS releaseTime
+		FROM 
+			zs_answer 
+		where 
+			uid=#{uid} and `status`=#{status}
+	</select>
+
+    <select id="getSortParam" resultType="result.vo.SortParam">
+		SELECT
+			a.view_count AS answerViewCount,
+			(
+				SELECT
+					COUNT(1)
+				FROM
+					zs_comment b
+				WHERE
+					b.aid = a.aid
+				AND b.comment_type = 1
+				AND b.`status` = 1
+			) AS commentCount,
+			a.like_count AS answerLikeCount,
+			a.create_time AS publishTime
+		FROM
+			zs_answer a
+		WHERE a.aid=#{aid}
+	
+	
+	</select>
+
+    <!-- 根据用户uid查询该用户所有【正常】回答获得的总赞数 -->
+    <select id="countAnswerLikeTotalByUid" resultType="long">
+		SELECT
+			IFNULL(SUM(like_count), 0)
+		FROM
+			zs_answer
+		WHERE
+			uid = #{uid}
+		AND `status` = 0
+	</select>
+
+    <resultMap id="AnswerWithTopicResultMap" type="result.vo.comment.MyAnswerWithTopicResult">
+        <id column="aid" property="aid"/>
+        <result column="tid" property="tid"/>
+        <result column="answer_title" property="answerTitle"/>
+        <result column="answer_content" property="answerContent"/>
+        <result column="status" property="status"/>
+        <result column="commentCount" property="commentCount"/>
+        <result column="like_count" property="likeCount"/>
+        <result column="topic_content" property="topicContent"/>
+        <result column="releaseTime" property="releaseTime"/>
+        <collection property="answerImageList" column="aid" javaType="list"
+                    select="getImageUrl"/>
+    </resultMap>
+    <!-- 获取指定用户的回答列表 -->
+    <select id="listAnswerPageWithTopicByUid" resultMap="AnswerWithTopicResultMap">
+        SELECT
+            za.aid,
+            za.tid,
+            za.answer_title,
+            za.answer_content,
+            za.`status`,
+            za.like_count,
+            (
+                SELECT
+                    COUNT(1)
+                FROM
+                    zs_comment zc
+                WHERE
+                    zc.aid = za.aid
+                AND zc.comment_type = 1
+                AND zc.`status` = 1
+            ) commentCount,
+            UNIX_TIMESTAMP(za.release_time) * 1000 releaseTime,
+            zt.topic_content
+        FROM
+            zs_answer za
+        LEFT JOIN zs_topic zt ON za.tid = zt.tid
+        WHERE
+            za.uid = #{uid}
+        AND (
+            za.`status` = 0
+            OR za.`status` = 2
+        )
+        ORDER BY za.release_time DESC
+    </select>
+    <!-- 获取指定用户的正常回答列表，不包含屏蔽的 -->
+    <select id="listNormalAnswerPageByUid" resultMap="AnswerWithTopicResultMap">
+        SELECT
+            za.aid,
+            za.tid,
+            za.answer_title,
+            za.answer_content,
+            za.`status`,
+            za.like_count,
+            (
+                SELECT
+                    COUNT(1)
+                FROM
+                    zs_comment zc
+                WHERE
+                    zc.aid = za.aid
+                AND zc.comment_type = 1
+                AND zc.`status` = 1
+            ) commentCount,
+            UNIX_TIMESTAMP(za.release_time) * 1000 releaseTime,
+            zt.topic_content
+        FROM
+            zs_answer za
+        LEFT JOIN zs_topic zt ON za.tid = zt.tid
+        WHERE
+            za.uid = #{uid}
+        AND
+            za.`status` = 0
+        ORDER BY za.release_time DESC
+    </select>
+
+    <resultMap id="DraftWithTopicResultMap" type="result.vo.comment.MyAnswerDraftWithTopicResult">
+        <id column="aid" property="aid"/>
+        <result column="tid" property="tid"/>
+        <result column="answer_title" property="answerTitle"/>
+        <result column="answer_content" property="answerContent"/>
+        <result column="topic_content" property="topicContent"/>
+        <result column="createTime" property="createTime"/>
+        <collection property="answerImageList" column="aid" javaType="list"
+                    select="getImageUrl"/>
+    </resultMap>
+    <!-- 获取指定用户的草稿列表 -->
+    <select id="listDraftPageWithTopicByUid" resultMap="DraftWithTopicResultMap">
+        SELECT
+            za.aid,
+            za.tid,
+            za.answer_title,
+            za.answer_content,
+            UNIX_TIMESTAMP(za.create_time) * 1000 createTime,
+            zt.topic_content
+        FROM
+            zs_answer za
+        LEFT JOIN zs_topic zt ON za.tid = zt.tid
+        WHERE
+            za.uid = #{uid}
+        AND za.`status` = 1
+        ORDER BY
+            za.create_time DESC
+    </select>
+
+    <resultMap id="CollectionAnswerResultMap" type="result.vo.comment.MyCollectionOfAnswerResult">
+        <id column="aid" property="aid"/>
+        <result column="tid" property="tid"/>
+        <result column="answer_title" property="answerTitle"/>
+        <result column="answer_content" property="answerContent"/>
+        <result column="commentCount" property="commentCount"/>
+        <result column="like_count" property="likeCount"/>
+        <result column="releaseTime" property="releaseTime"/>
+        <result column="uid" property="answerUid"/>
+        <result column="uname" property="uname"/>
+        <result column="headUrl" property="headUrl"/>
+        <result column="user_signature" property="userSignature"/>
+        <result column="followStatus" property="followStatus"/>
+        <result column="collectionTime" property="collectionTime"/>
+        <result column="topic_content" property="topicContent"/>
+        <collection property="answerImageList" column="aid" javaType="list"
+                    select="getImageUrl"/>
+    </resultMap>
+    <!-- 获取指定用户的收藏回答列表 -->
+    <select id="listCollectionOfAnswerPageByUid" resultMap="CollectionAnswerResultMap">
+        SELECT
+            za.aid,
+            za.tid,
+            za.uid,
+            zu.uname,
+            zu.user_signature,
+            zu.headurl headUrl,
+            za.answer_title,
+            za.answer_content,
+            zt.topic_content,
+            za.like_count,
+            (
+                SELECT
+                    COUNT(1)
+                FROM
+                    zs_comment zc
+                WHERE
+                    zc.aid = za.aid
+                AND zc.comment_type = 1
+                AND zc.`status` = 1
+            ) AS commentCount,
+            IFNULL(
+                (
+                    SELECT
+                        CASE zuf.is_friend
+                    WHEN 1 THEN
+                        2
+                    WHEN 0 THEN
+                        1
+                    ELSE
+                        0
+                    END
+                    FROM
+                        zs_user_friend zuf
+                    WHERE
+                        zuf.uid = #{uid}
+                    AND zuf.follow_uid = zu.uid
+                ),
+                0
+            ) AS followStatus,
+            UNIX_TIMESTAMP(za.release_time) * 1000 AS releaseTime,
+            UNIX_TIMESTAMP(zuc.create_time) * 1000 AS collectionTime
+        FROM
+            zs_user_collection zuc
+        LEFT JOIN zs_answer za ON zuc.data_id = za.aid
+        LEFT JOIN zs_user zu ON za.uid = zu.uid
+        LEFT JOIN zs_topic zt ON za.tid = zt.tid
+        WHERE
+            zuc.collection_type = 1
+        AND zuc.uid = #{uid}
+        AND za.`status` = 0
+        ORDER BY
+            zuc.create_time DESC
+    </select>
+
+    <!-- 点赞：根据主键id点赞数+1 -->
+    <update id="userGiveLike">
+		UPDATE zs_answer
+		SET like_count = like_count + 1
+		WHERE
+			aid = #{aid}
+	</update>
+
+    <!-- 取消点赞：根据主键id点赞数-1 -->
+    <update id="cancelUserLike">
+		UPDATE zs_answer
+		SET like_count = like_count - 1
+		WHERE
+			aid = #{aid}
+	</update>
+
+    <!-- 阅读数+1 -->
+    <update id="increaseViewCount">
+		UPDATE zs_answer
+		SET view_count = view_count + 1
+		WHERE
+			aid = #{aid}
+	</update>
+
+</mapper>

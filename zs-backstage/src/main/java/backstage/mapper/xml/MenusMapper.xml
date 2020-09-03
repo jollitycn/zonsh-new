@@ -1,0 +1,172 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="backstage.mapper.MenusMapper">
+
+    <!-- 通用查询映射结果 -->
+    <resultMap id="BaseResultMap" type="backstage.entity.Menus">
+        <id column="mid" property="mid" />
+        <result column="menu_code" property="menuCode" />
+        <result column="menu_name" property="menuName" />
+        <result column="icon" property="icon" />
+        <result column="menu_level" property="menuLevel" />
+        <result column="describe" property="describe" />
+        <result column="url" property="url" />
+        <result column="sort" property="sort" />
+        <result column="parent_menu" property="parentMenu" />
+        <result column="create_by" property="createBy" />
+        <result column="create_time" property="createTime" />
+    </resultMap>
+    
+    <!--查询管理后台对应用户的菜单 -->
+    <resultMap id="MenuResultMap" type="result.vo.admin.MenuResult">
+        <id column="mid" property="mid" />
+        <result column="menu_code" property="menuCode" />
+        <result column="menu_name" property="menuName" />
+        <result column="icon" property="icon" />
+        <result column="menu_level" property="menuLevel" />
+        <collection column="mid" select="getSecondMenu" property="secondMenuList"/>
+    </resultMap>
+    <select id="getMenus" resultMap="MenuResultMap">
+		SELECT
+			a.mid,
+			a.menu_code,
+			a.menu_name,
+			a.icon
+		FROM
+			zs_menus a
+		WHERE
+			a.menu_level = 1
+		ORDER BY
+			a.sort 
+	</select>
+	
+	<select id="getSecondMenu" resultType="result.vo.admin.SecondMenu">
+		SELECT
+        mid,
+        menu_code AS menuCode,
+        menu_name AS menuName,
+        icon,
+        menu_level AS menuLevel
+        FROM
+	    zs_menus
+    WHERE
+	    menu_level = 2
+    AND parent_menu = #{mid}
+	</select>
+
+    <!-- 获取权限详情 -->
+    <resultMap id="RoleDetailResultMap" type="result.vo.admin.RolesDeatilResult">
+        <id column="rid" property="rid" />
+        <result column="role_code" property="roleCode" />
+        <result column="role_name" property="roleName" />
+        <collection column="rid" select="getRoleMode" property="roleModeList"/>
+    </resultMap>
+    <resultMap id="RoleModeResult" type="result.vo.admin.RoleMode">
+        <id column="rdid" property="rdid" />
+        <result column="rid" property="rid" />
+        <result column="mid" property="mid" />
+        <result column="menuCode" property="menuCode" />
+        <result column="menuName" property="menuName" />
+        <result column="routeName" property="routeName"/>
+        <result column="icon" property="icon"/>
+        <collection column="{rid=rid,mid=mid}" select="getRolePage" property="pageList"/>
+    </resultMap>
+
+    <select id="getUserMenus" resultMap="RoleDetailResultMap">
+	SELECT
+		rid,
+		role_code,
+		role_name
+	FROM
+		zs_roles
+	WHERE
+		rid = #{roleId}
+    </select>
+    <select id="getRoleMode" resultMap="RoleModeResult">
+	  SELECT
+		a.rdid,
+		a.rid,
+		b.mid,
+		b.menu_code AS menuCode,
+		b.menu_name AS menuName,
+		b.route_name AS routeName,
+		b.icon
+	FROM
+		zs_roles_detail a
+	LEFT JOIN zs_menus b ON a.mid = b.mid
+	WHERE
+		a.rid = #{rid} AND a.rd_type=1
+    </select>
+    <select id="getRolePage" resultType="result.vo.admin.RolePage">
+	 SELECT
+		a.rdid,
+		b.menu_code AS menuCode,
+		b.menu_name AS menuName,
+		b.route_name AS routeName,
+		b.icon,
+		b.url,
+		a.`write`,
+		a.`read`
+	FROM
+		zs_roles_detail a
+	LEFT JOIN zs_menus b ON a.mid = b.mid
+	WHERE
+		a.rid = #{rid} AND b.parent_menu=#{mid} AND a.rd_type=2
+    </select>
+
+<!-- 另外一种方法获取用户权限 -->
+    <select id="getUserSecondMenus" parameterType="backstage.model.dto.menu.UserMenuDto" resultType="backstage.model.vo.menu.UserSencondMenuVo">
+       SELECT
+            a.rdid,
+            b.parent_menu AS pid,
+            b.menu_code AS menuCode,
+            b.menu_name AS menuName,
+            b.route_name AS routeName,
+            b.icon,
+            b.url,
+            a.`write`,
+            a.`read`
+        FROM
+	        zs_roles_detail a
+	    LEFT JOIN zs_menus b ON a.mid = b.mid
+        WHERE
+            a.rid = #{userMenuDto.roleId}
+        AND a.rd_type = 2
+        AND ( a.`write` = '1' OR a.`read` = '1' )
+        AND b.parent_menu = #{userMenuDto.pid}
+    </select>
+
+    <select id="getUserFirstMenus" parameterType="java.lang.Long" resultType="backstage.model.vo.menu.UserMenuVo">
+		SELECT
+            b.mid,
+            b.menu_code AS menuCode,
+            b.menu_name AS menuName,
+            b.route_name AS routeName,
+            b.icon
+		FROM
+	        zs_menus b
+        WHERE
+	        b.mid = #{menuId}
+    </select>
+
+    <select id="getUserFirstMenuIds" parameterType="java.lang.Long" resultType="java.lang.Long">
+        SELECT DISTINCT
+	        ( s.mid )
+        FROM
+            zs_menus s
+            RIGHT JOIN (
+            SELECT
+                b.parent_menu AS pid
+            FROM
+                zs_roles_detail a
+                LEFT JOIN zs_menus b ON a.mid = b.mid
+            WHERE
+                a.rid = #{roleId}
+                AND a.rd_type = 2
+                AND ( a.`write` = '1' OR a.`read` = '1' )
+            ) k ON s.mid = k.pid
+        WHERE
+	        s.menu_level = 1
+    </select>
+
+</mapper>

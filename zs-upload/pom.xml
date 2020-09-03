@@ -1,0 +1,80 @@
+<?xml version="1.0"?>
+<project
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd"
+	xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+
+	<modelVersion>4.0.0</modelVersion>
+	<artifactId>zs-upload</artifactId>
+	
+
+	<parent>
+		<groupId>com.insi.zonsh</groupId>
+		<artifactId>zs-parent</artifactId>
+		<version>0.0.1-SNAPSHOT</version>
+		<relativePath>../</relativePath>
+	</parent>
+
+
+	<dependencies>
+		<dependency>
+			<groupId>com.insi.zonsh</groupId>
+			<artifactId>zs-common</artifactId>
+		</dependency>
+
+
+		<!-- 腾讯存储 -->
+		<dependency>
+			<groupId>com.qcloud</groupId>
+			<artifactId>cos_api</artifactId>
+			<version>5.5.3</version>
+		</dependency>
+
+	</dependencies>
+
+	
+
+	<build>
+		<finalName>zs-upload-1.0.0</finalName>
+		<!-- 多配置相关 -->
+		<!-- <filters>
+		 <filter>src/main/properties/${active}.properties</filter> 
+			</filters> -->
+		<plugins>
+			<plugin>
+				<groupId>org.springframework.boot</groupId>
+				<artifactId>spring-boot-maven-plugin</artifactId>
+				<executions>
+					<execution>
+						<goals>
+							<goal>repackage</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+			<plugin>
+				<groupId>com.spotify</groupId>
+				<artifactId>docker-maven-plugin</artifactId>
+				<version>1.0.0</version>
+				<configuration>
+					<!-- 打包docker镜像相关 -->
+					<!--   <serverId>docker-aliyun</serverId>
+					<registryUrl>${docker.repostory}</registryUrl>
+					<pushImage>true</pushImage>
+					<dockerDirectory>src/main/docker</dockerDirectory>
+					<imageName>${docker.repostory}/${docker.registry.name}/${project.artifactId}:${project.version}</imageName>
+					<imageTags>
+						<imageTag>${project.version}</imageTag>
+					</imageTags>-->
+					<resources>
+						<rescource>
+							<targetPath>/</targetPath>
+							<directory>${project.build.directory}</directory>
+							<include>${project.build.finalName}.jar</include>
+						</rescource>
+					</resources>
+				</configuration>
+			</plugin>
+		</plugins>
+	</build>
+
+</project>

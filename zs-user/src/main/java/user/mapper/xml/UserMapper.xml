@@ -1,0 +1,280 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="user.mapper.UserMapper">
+
+	<!-- 通用查询映射结果 -->
+	<resultMap id="BaseResultMap" type="user.entity.User">
+		<id column="uid" property="uid" />
+		<result column="user_number" property="userNumber" />
+		<result column="phone" property="phone" />
+		<result column="uname" property="uname" />
+		<result column="wx_name" property="wxName" />
+		<result column="headurl" property="headurl" />
+		<result column="gender" property="gender" />
+		<result column="status" property="status" />
+		<result column="create_time" property="createTime" />
+		<result column="updata_time" property="updataTime" />
+	</resultMap>
+
+	<!-- 通用查询映射结果 -->
+	<resultMap id="inviteUserResultMap" type="result.vo.InvitationUserResult">
+		<id column="uid" property="uid" />
+		<result column="uname" property="uname" />
+		<result column="invitationCount" property="invitationCount" />
+		<result column="replyCount" property="replyCount" />
+		<result column="commentCount" property="commentCount" />
+		<result column="replyViewCount" property="replyViewCount" />
+		<result column="lastLoginTime" property="lastLoginTime" />
+		<collection column="{uid=uid,tid=tid}"
+			select="user.mapper.TopicInviteMapper.getTopicInviteUser"
+			property="status"></collection>
+	</resultMap>
+
+	<select id="getTopicUserList" resultMap="inviteUserResultMap">
+		SELECT
+		#{tid} as tid,
+		a.uid,
+		a.uname,
+		(SELECT COUNT(1) FROM zs_answer d WHERE d.uid = a.uid AND d.`status`=0) as replyCount,
+		DATE_FORMAT(b.login_time, '%Y-%m-%d
+		%H:%i:%s') AS lastLoginTime
+		FROM
+		zs_user a
+		LEFT JOIN zs_user_token b ON
+		a.uid = b.uid
+		WHERE 1=1
+		<if test="searchkey!=null ">
+			AND a.uid LIKE #{searchkey} OR a.uname LIKE #{searchkey}
+		</if>
+	</select>
+
+	<select id="getReplyUserInfoList" resultType="request.RpcAnswerParameter">
+		select zu.uid as id,zu.uname as content from zs_user zu where
+		zu.`status`=1
+		<if test="searchKey!=null">
+			and zu.uname like #{searchKey}
+		</if>
+	</select>
+
+	<select id="getUserList" resultType="result.vo.WebUserResult">
+		SELECT
+			u.uid,
+			u.user_number AS number,
+			u.headurl AS headUrl,
+			u.uname,
+			u.phone,
+			u.`status`,
+			u.create_time AS createTime,
+			(
+				SELECT
+					IFNULL(COUNT(1), 0)
+				FROM
+					zs_user_friend zuf
+				WHERE
+					zuf.uid = u.uid
+			) AS attentionCount
+		FROM
+			zs_user u
+		WHERE
+			1 = 1
+
+		<if test="status!=null">
+		 AND status =#{status}
+		</if>
+
+		<if test="startTime!=null and endTime!=null">
+		 AND DATE_FORMAT(u.create_time,'%Y-%m-%d') &gt;= #{startTime}
+		 AND DATE_FORMAT(u.create_time,'%Y-%m-%d') &lt;= #{endTime}
+		</if>
+
+		<if test="searchKey!=null">
+		 AND ( u.user_number like #{searchKey} or u.phone like #{searchKey})
+		</if>
+
+	</select>
+
+	<select id="getSystemRecommendUser" resultType="result.vo.RecommendUserResult">
+		SELECT
+			a.uid,
+			a.headurl,
+			a.uname,
+			a.gender,
+			a.user_signature AS introduce,
+			(
+				SELECT
+					COUNT(1)
+				FROM
+					zs_answer b
+				WHERE
+					b.uid = a.uid
+				AND LENGTH(b.answer_content) > 80
+			) AS answerCount
+			<if test="uid!=null and tid!=null">
+			,
+			(
+				SELECT
+					COUNT(1)
+				FROM
+					zs_topic_invite c
+				WHERE
+					c.tid = #{tid}
+				AND c.create_uid = #{uid} AND  c.uid = a.uid
+			) AS isInvitation
+			</if>
+		FROM
+			zs_user a
+		ORDER BY
+			answerCount DESC
+	</select>
+
+	<!-- app端修改用户基本信息 -->
+	<update id="updateUserInfoByUid">
+		UPDATE zs_user
+		SET uname = #{uname}, headurl = #{headurl}, user_signature = #{userSignature}
+		WHERE uid = #{uid}
+	</update>
+
+	<!-- 查询用户列表推荐：按照用户答题数量从高往低排（计算范围：回答字数需为80字以上），最多推荐15名用户 -->
+	<select id="listRecommendedUser" resultType="result.vo.user.RecommendUserInfoResult">
+		SELECT
+			zu.uid,
+			zu.headurl,
+			zu.uname,
+			zu.gender,
+			zu.user_signature userSignature,
+			(
+				SELECT
+					COUNT(1)
+				FROM
+					zs_answer za
+				WHERE
+					za.uid = zu.uid
+				AND LENGTH(za.answer_content) > 80
+			) AS answerCount
+			<choose>
+				<when test="null != loginUid">
+					, IFNULL(
+						(
+							SELECT
+								CASE zuf.is_friend
+									WHEN 1 THEN 2
+									WHEN 0 THEN 1
+									ELSE 0
+								END
+							FROM
+								zs_user_friend zuf
+							WHERE
+								zuf.uid = #{loginUid}
+							AND zuf.follow_uid = zu.uid
+							),
+						0
+						) AS followStatus
+				</when>
+				<otherwise> , 0 AS followStatus</otherwise>
+			</choose>
+		FROM
+			zs_user zu
+		WHERE
+			1 = 1
+		<if test="null != loginUid">AND zu.uid != #{loginUid}</if>
+		ORDER BY
+			answerCount DESC
+		LIMIT 15
+	</select>
+
+	<!-- 根据昵称或者手机号搜索用户信息 -->
+	<select id="listUserByUnameOrPhone" resultType="result.vo.user.RecommendUserInfoResult">
+		SELECT
+			zu.uid,
+			zu.headurl,
+			zu.uname,
+			zu.gender,
+			zu.user_signature userSignature
+			<choose>
+				<when test="null != loginUid">
+					, IFNULL(
+						(
+							SELECT
+								CASE zuf.is_friend
+									WHEN 1 THEN 2
+									WHEN 0 THEN 1
+									ELSE 0
+								END
+							FROM
+								zs_user_friend zuf
+							WHERE
+								zuf.uid = #{loginUid}
+							AND zuf.follow_uid = zu.uid
+						),
+					0
+					) AS followStatus
+				</when>
+				<otherwise> , 0 AS followStatus</otherwise>
+			</choose>
+		FROM
+			zs_user zu
+		WHERE
+			1 = 1
+		<if test="null != searchKey and searchKey != ''">
+			AND (
+				zu.uname LIKE CONCAT('%', #{searchKey}, '%')
+				OR zu.phone LIKE CONCAT('%', #{searchKey}, '%')
+			)
+		</if>
+	</select>
+
+	<!-- 根据用户uid分页查询该用户关注的用户信息 -->
+	<select id="listFollowUserPageByUid" resultType="result.vo.user.RecommendUserInfoResult">
+		SELECT
+			zu.uid,
+			zu.headurl,
+			zu.uname,
+			zu.gender,
+			zu.user_signature userSignature,
+			(
+				CASE zuf.is_friend
+				WHEN 1 THEN
+					2
+				WHEN 0 THEN
+					1
+				ELSE
+					0
+				END
+			) followStatus
+		FROM
+			zs_user_friend zuf
+		LEFT JOIN zs_user zu ON zuf.follow_uid = zu.uid
+		WHERE
+			zu.uid IS NOT NULL
+		AND zuf.uid = #{uid}
+		ORDER BY
+			zuf.create_time DESC
+	</select>
+
+	<!-- 根据用户uid分页查询该用户粉丝的信息 -->
+	<select id="listMyFansPage" resultType="result.vo.user.RecommendUserInfoResult">
+		SELECT
+			zu.uid,
+			zu.headurl,
+			zu.uname,
+			zu.gender,
+			zu.user_signature userSignature,
+			(
+				CASE zuf.is_friend
+				WHEN 1 THEN
+					2
+				ELSE
+					0
+				END
+			) followStatus
+		FROM
+			zs_user_friend zuf
+		LEFT JOIN zs_user zu ON zuf.uid = zu.uid
+		WHERE
+			zu.uid IS NOT NULL
+		AND zuf.follow_uid = #{uid}
+		ORDER BY
+			zuf.create_time DESC
+	</select>
+
+</mapper>

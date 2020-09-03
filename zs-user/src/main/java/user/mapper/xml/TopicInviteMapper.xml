@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="user.mapper.TopicInviteMapper">
+
+    <!-- 通用查询映射结果 -->
+    <resultMap id="BaseResultMap" type="user.entity.TopicInvite">
+        <id column="iid" property="iid" />
+        <result column="uid" property="uid" />
+        <result column="tid" property="tid" />
+        <result column="type" property="type" />
+        <result column="create_uid" property="createUid" />
+        <result column="create_time" property="createTime" />
+    </resultMap>
+    <select id="getTopicInviteUser" resultType="Integer">
+		select IF(COUNT(1),2,1) from zs_topic_invite where uid=#{uid} and tid=#{tid}
+	</select>
+    <delete id="deleteInvitation">
+        delete from zs_topic_invite where tid=#{tid} and type=1
+
+    </delete>
+</mapper>

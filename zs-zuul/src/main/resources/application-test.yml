@@ -1,0 +1,51 @@
+server:
+  port: 8080
+  tomcat:
+    max-http-post-size: -1
+spring:
+  application:
+    name: zuul
+  servlet:
+    multipart:
+      max-file-size: 30Mb
+      max-request-size: 30Mb
+
+eureka:
+  client:
+    serviceUrl:
+      defaultZone: http://127.0.0.1:8000/eureka/
+
+#网关路由转发
+zuul:
+  routes:
+    userapi:
+      path: /user/**
+      service-id: user
+#      url: http://127.0.0.1:8200/
+    questionapi:
+      path: /question/**
+      service-id: question
+#      url: http://127.0.0.1:8100/
+    backstageapi:
+      path: /backstage/**
+      service-id: backstage
+#      url: http://127.0.0.1:8300/
+    commentapi:
+      path: /comment/**
+      service-id: comment
+#      url: http://127.0.0.1:8400/
+    uploadapi:
+      path: /upload/**
+      service-id: upload
+  host:
+    connect-timeout-millis: 15000 #HTTP连接超时要比Hystrix的大
+    socket-timeout-millis: 60000   #socket超时
+ribbon:
+  ReadTimeout: 30000
+  ConnectTimeout: 30000
+
+  #zuul网关支持跨域(过滤)
+  sensitive-headers: Access-Control-Allow-Origin
+  ignored-headers: Access-Control-Allow-Origin,H-APP-Id,APPToken
+
+
